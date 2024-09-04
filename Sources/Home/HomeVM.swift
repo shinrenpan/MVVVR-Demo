@@ -1,24 +1,25 @@
 //
-//  HomeVM.swift Created by Shinren Pan on 2024/2/23.
+//  HomeVM.swift
 //
-//  Copyright (c) 2024 Shinren Pan All rights reserved.
+//  Created by Shinren Pan on 2024/9/4.
 //
 
 import Combine
 import UIKit
 
 final class HomeVM {
-    @Published private(set) var state = HomeModels.State.none
-    private(set) var model = HomeModels.DisplayModel()
+    @Published var state = HomeModel.State.none
 }
 
 // MARK: - Public
 
 extension HomeVM {
-    func doAction(_ action: HomeModels.Action) {
+    func doAction(_ action: HomeModel.Action) {
         switch action {
         case .loadData:
             actionLoadData()
+        case let .selectProduct(request):
+            actionSelectProduct(request: request)
         }
     }
 }
@@ -26,61 +27,26 @@ extension HomeVM {
 // MARK: - Private
 
 private extension HomeVM {
-    
-    // MARK: Action
-    
     func actionLoadData() {
-        if model.isLoading { return }
-        
-        model.isLoading = true
-        
-        let testFailure = Bool.random()
-        
-        if testFailure {
-            handleTestFailure()
-            return
-        }
-        
-        Task {
-            do {
-                let url = try makeURL()
-                let session = URLSession.shared
-                let result = try await session.data(from: url)
-                try handleLoadData(result)
-            }
-            catch {
-                handleLoadDataFailure(error)
-            }
-        }
+        let response = HomeModel.DataLoadedResponse(products: makeDefaultProducts())
+        state = .dataLoaded(response: response)
     }
-    
-    // MARK: - Handle Something
-    
-    func handleLoadData(_ result: (Data, URLResponse)) throws {
-        let items = try JSONDecoder().decode([HomeModels.Repository].self, from: result.0)
-        model.items = items
-        state = .dataLoaded
-        model.isLoading = false
+
+    func actionSelectProduct(request: HomeModel.SelectProductRequest) {
+        let product = request.product
+        product.selected.toggle()
+
+        let total = request.allProduct.filter { $0.selected }.reduce(Decimal(0)) { $0 + $1.price }
+        let response = HomeModel.ProductSelectedResponse(product: product, total: total)
+        state = .productSeleced(response: response)
     }
-    
-    func handleLoadDataFailure(_ error: Error) {
-        state = .failure(error)
-        model.isLoading = false
-    }
-    
-    func handleTestFailure() {
-        state = .failure(NSError(domain: "", code: -999))
-        model.isLoading = false
-    }
-    
-    // MARK: - Make Something
-    
-    func makeURL() throws -> URL {
-        let uri = "https://api.github.com/users/shinrenpan/repos"
-        guard let url = URL(string: uri) else {
-            throw HomeModels.APIError.invalidRUL
-        }
-        
-        return url
+
+    func makeDefaultProducts() -> [HomeModel.Product] {
+        return [
+            .init(name: "iPhone 15", price: .init(29900)),
+            .init(name: "iPhone 15 Plus", price: .init(32900)),
+            .init(name: "iPhone 15 Pro", price: .init(36900)),
+            .init(name: "iPhone 15 Pro Max", price: .init(44900)),
+        ]
     }
 }

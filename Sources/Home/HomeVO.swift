@@ -1,16 +1,18 @@
 //
-//   HomeVO.swift Created by Shinren Pan on 2024/2/23.
+//  HomeVO.swift
 //
-//   Copyright (c) 2024 Shinren Pan All rights reserved.
+//  Created by Shinren Pan on 2024/9/4.
 //
 
 import UIKit
 
 final class HomeVO {
     let mainView = UIView(frame: .zero)
-    let list = UITableView(frame: .zero, style: .plain)
-    let messageLabel = UILabel(frame: .zero)
-    
+    let totalLabel = UILabel(frame: .zero)
+    let infoButton = UIButton(configuration: makeButtonConfiguration())
+    let list = UICollectionView(frame: .zero, collectionViewLayout: makeListLayout())
+    lazy var dataSource = makeDataSource()
+
     init() {
         setupSelf()
         addViews()
@@ -20,18 +22,20 @@ final class HomeVO {
 // MARK: - Public
 
 extension HomeVO {
-    func reloadData(_ mode: HomeModels.DisplayModel) {
-        list.refreshControl?.endRefreshing()
-        list.reloadData()
+    func reloadList(response: HomeModel.DataLoadedResponse) {
+        var snapshot = HomeModel.SnapShot()
+        snapshot.appendSections([0])
+        snapshot.appendItems(response.products, toSection: 0)
+        dataSource.apply(snapshot)
     }
     
-    func reloadMessageUI(_ message: String) {
-        list.refreshControl?.endRefreshing()
-        messageLabel.text = message
-        messageLabel.isHidden = false
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            self.messageLabel.isHidden = true
+    func reloadSelectedUI(response: HomeModel.ProductSelectedResponse) {
+        var snapshot = dataSource.snapshot()
+        snapshot.reloadItems([response.product])
+
+        dataSource.apply(snapshot) { [weak self] in
+            guard let self else { return }
+            totalLabel.text = "$" + response.total.formatted(.number)
         }
     }
 }
@@ -40,40 +44,66 @@ extension HomeVO {
 
 private extension HomeVO {
     func setupSelf() {
-        mainView.backgroundColor = .white
         mainView.translatesAutoresizingMaskIntoConstraints = false
-        
+        mainView.backgroundColor = .white
+
+        totalLabel.translatesAutoresizingMaskIntoConstraints = false
+        totalLabel.textAlignment = .center
+        totalLabel.text = "$0"
+
         list.translatesAutoresizingMaskIntoConstraints = false
-        list.register(HomeItemCell.self, forCellReuseIdentifier: "\(HomeItemCell.self)")
-        list.rowHeight = 60.0
-        list.refreshControl = .init(frame: .zero)
-        
-        messageLabel.translatesAutoresizingMaskIntoConstraints = false
-        messageLabel.backgroundColor = .black
-        messageLabel.textColor = .white
-        messageLabel.font = .boldSystemFont(ofSize: 20)
-        messageLabel.numberOfLines = 0
-        messageLabel.isHidden = true
-        messageLabel.clipsToBounds = true
-        messageLabel.layer.cornerRadius = 4
-        messageLabel.text = "Hello"
     }
     
     func addViews() {
+        let hStack = UIStackView(arrangedSubviews: [totalLabel, infoButton])
+        hStack.translatesAutoresizingMaskIntoConstraints = false
+        hStack.axis = .horizontal
+        hStack.spacing = 8
+        hStack.alignment = .center
+
+        mainView.addSubview(hStack)
         mainView.addSubview(list)
+
         NSLayoutConstraint.activate([
-            list.topAnchor.constraint(equalTo: mainView.topAnchor),
+            hStack.topAnchor.constraint(equalTo: mainView.topAnchor, constant: 8),
+            hStack.centerXAnchor.constraint(equalTo: mainView.centerXAnchor),
+
+            list.topAnchor.constraint(equalTo: totalLabel.bottomAnchor, constant: 8),
             list.leadingAnchor.constraint(equalTo: mainView.leadingAnchor),
             list.trailingAnchor.constraint(equalTo: mainView.trailingAnchor),
             list.bottomAnchor.constraint(equalTo: mainView.bottomAnchor),
         ])
-        
-        mainView.addSubview(messageLabel)
-        NSLayoutConstraint.activate([
-            messageLabel.centerXAnchor.constraint(equalTo: mainView.centerXAnchor),
-            messageLabel.bottomAnchor.constraint(equalTo: mainView.bottomAnchor, constant: -36),
-            messageLabel.leadingAnchor.constraint(greaterThanOrEqualTo: mainView.leadingAnchor, constant: 36),
-            messageLabel.trailingAnchor.constraint(lessThanOrEqualTo: mainView.trailingAnchor, constant: -36),
-        ])
+    }
+    
+    static func makeButtonConfiguration() -> UIButton.Configuration {
+        var result = UIButton.Configuration.filled()
+        result.image = .init(systemName: "info")
+
+        return result
+    }
+    
+    static func makeListLayout() -> UICollectionViewCompositionalLayout {
+        var config = UICollectionLayoutListConfiguration(appearance: .plain)
+        config.backgroundColor = .clear
+
+        return .list(using: config)
+    }
+    
+    func makeCell() -> HomeModel.CellRegistration {
+        .init { cell, indexPath, itemIdentifier in
+            var config = cell.defaultContentConfiguration()
+            config.text = itemIdentifier.name
+            config.secondaryText = itemIdentifier.price.formatted(.number)
+            cell.accessories = [.checkmark(options: .init(isHidden: !itemIdentifier.selected))]
+            cell.contentConfiguration = config
+        }
+    }
+    
+    func makeDataSource() -> HomeModel.DataSource {
+        let cell = makeCell()
+
+        return .init(collectionView: list) { collectionView, indexPath, itemIdentifier in
+            collectionView.dequeueConfiguredReusableCell(using: cell, for: indexPath, item: itemIdentifier)
+        }
     }
 }

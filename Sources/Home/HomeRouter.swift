@@ -1,10 +1,11 @@
 //
-//  HomeRouter.swift Created by Shinren Pan on 2024/2/23.
+//  HomeRouter.swift
 //
-//  Copyright (c) 2024 Shinren Pan All rights reserved.
+//  Created by Shinren Pan on 2024/9/4.
 //
 
 import UIKit
+import SafariServices
 
 final class HomeRouter {
     weak var vc: HomeVC?
@@ -13,16 +14,13 @@ final class HomeRouter {
 // MARK: - Public
 
 extension HomeRouter {
-    func pushSomeVC() {
-        let to = UIViewController()
-        to.view.backgroundColor = .green
-        to.title = "Pushed"
-        vc?.navigationController?.pushViewController(to, animated: true)
-    }
-    
-    func presentSomeVC() {
-        let to = UIViewController()
-        to.view.backgroundColor = .yellow
+    func toAppleStore() {
+        guard let urlComponents = URLComponents(string: "https://www.apple.com/store"),
+              let url = urlComponents.url else {
+            return
+        }
+
+        let to = SFSafariViewController(url: url)
         vc?.present(to, animated: true)
     }
 }
