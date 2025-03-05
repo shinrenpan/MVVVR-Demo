@@ -5,8 +5,9 @@
 //
 
 import UIKit
+import List
 
-@UIApplicationMain class AppDelegate: UIResponder {
+@main class AppDelegate: UIResponder {
     var window: UIWindow?
 }
 
@@ -17,7 +18,7 @@ extension AppDelegate: UIApplicationDelegate {
         let bounds = UIScreen.main.bounds
         let window = UIWindow(frame: bounds)
         window.backgroundColor = .white
-        window.rootViewController = HomeVC()
+        window.rootViewController = UINavigationController(rootViewController: List.ViewController())
         self.window = window
         window.makeKeyAndVisible()
         return true
